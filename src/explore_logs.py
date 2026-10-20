@@ -45,6 +45,15 @@ def parse_at(log: DFReader.DFReader_binary, offset: int):
     return log._parse_next()
 
 
+def first_time(log, offsets, tries: int = 20):
+    """TimeUS of the first parseable message (the last one is often cut off)."""
+    for ofs in offsets[:tries]:
+        m = parse_at(log, ofs)
+        if m is not None:
+            return m.TimeUS
+    return None
+
+
 def sample_rate(log, offsets: list[int], instance_col: str | None):
     """Logging rate per instance (Hz), from the median gap between samples.
 
@@ -79,8 +88,8 @@ def message_types(log: DFReader.DFReader_binary) -> pd.DataFrame:
         first_us = last_us = rate_hz = n_inst = None
         if "TimeUS" in fmt.columns:
             offsets = log.offsets[type_id]
-            first_us = parse_at(log, offsets[0]).TimeUS
-            last_us = parse_at(log, offsets[-1]).TimeUS
+            first_us = first_time(log, offsets)
+            last_us = first_time(log, offsets[::-1])  # walk back from the end
             inst_col = next((c for c in INSTANCE_COLS if c in fmt.columns), None)
             rate_hz, n_inst = sample_rate(log, offsets, inst_col)
         rows.append({
@@ -160,7 +169,16 @@ def main() -> int:
         print(f"No .BIN files found in {args.target}")
         return 1
 
-    all_types = pd.concat([explore(p, args.fields) for p in logs], ignore_index=True)
+    per_log, failed = [], []
+    for p in logs:
+        try:
+            per_log.append(explore(p, args.fields))
+        except Exception as ex:  # one corrupt log should not stop the run
+            print(f"\n=== {p.name}: FAILED ({type(ex).__name__}: {ex})")
+            failed.append(p.name)
+    if not per_log:
+        return 1
+    all_types = pd.concat(per_log, ignore_index=True)
 
     # Cross-log summary: in how many logs does each type appear, how big is it?
     summary = (all_types.groupby("msg_type")
@@ -170,7 +188,8 @@ def main() -> int:
                     median_hz=("rate_hz", "median"),
                     fields=("fields", "first"))
                .sort_values("total_rows", ascending=False))
-    print(f"\n=== SUMMARY across {len(logs)} logs")
+    print(f"\n=== SUMMARY across {len(per_log)} logs"
+          + (f" ({len(failed)} failed: {', '.join(failed)})" if failed else ""))
     print(summary[["logs", "total_rows", "instances", "median_hz"]].to_string())
 
     SUMMARY_CSV.parent.mkdir(parents=True, exist_ok=True)
