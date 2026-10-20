@@ -51,7 +51,7 @@ CREATE TABLE flights (
   file_sha1  CHAR(40)     NOT NULL UNIQUE,      -- same file = same hash: makes reloads idempotent
   file_mb    DECIMAL(6,1) NOT NULL,
   firmware   VARCHAR(60)  DEFAULT NULL,         -- e.g. 'ArduCopter V4.7.1 (dbe79216)'
-  start_utc  DATETIME     DEFAULT NULL,         -- from first GPS fix; NULL if the log has no GPS
+  start_utc  DATETIME     DEFAULT NULL,         -- UTC at boot (time_us = 0), from first 3D GPS fix; NULL if none
   loaded_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
