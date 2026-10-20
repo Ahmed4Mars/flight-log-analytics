@@ -1,0 +1,6 @@
+pymavlink>=2.4.41
+pandas>=2.2
+sqlalchemy>=2.0
+pymysql>=1.1
+cryptography>=42  # needed by pymysql for MySQL 8 caching_sha2_password auth
+python-dotenv>=1.0
