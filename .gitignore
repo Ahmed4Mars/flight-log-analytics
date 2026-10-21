@@ -18,3 +18,7 @@ __pycache__/
 .idea/
 Thumbs.db
 desktop.ini
+
+# Local AI-assistant instructions (kept on disk, not published)
+CLAUDE.md
+.claude/
